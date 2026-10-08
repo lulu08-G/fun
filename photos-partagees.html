@@ -1,0 +1,80 @@
+<title>Photos partagées</title>
+<style>
+/* Leurre sobre façon partage de fichiers, puis plein écran noir/rouge */
+:root{--bg:#f4f5f7;--fg:#24292f;--muted:#5b6470;--accent:#0f6cbd;--track:#dde1e6;color-scheme:light}
+html,body{height:100%;margin:0;overflow:hidden}
+body{background:var(--bg);color:var(--fg);font-family:"Segoe UI",system-ui,Arial,sans-serif;padding-inline:16px}
+#calme{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center}
+#calme h1{font-size:1.35rem;font-weight:600;margin:0}
+#calme p{margin:0;color:var(--muted)}
+#b{font:inherit;font-size:1.05rem;padding:12px 26px;border:0;border-radius:4px;background:var(--accent);color:#fff;cursor:pointer}
+#b:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+#barre{width:min(260px,80%);height:5px;background:var(--track);border-radius:3px;overflow:hidden}
+#barre i{display:block;height:100%;width:0;background:var(--accent);transition:width 2.5s linear}
+#scream{position:fixed;inset:0;background:#000}
+#scream canvas{width:100%;height:100%;display:block}
+</style>
+<div id="calme">
+ <h1>3 photos ont été partagées avec vous</h1>
+ <p>Album « Soirée » · 4,2 Mo</p>
+ <button id="b" type="button">Afficher les photos</button>
+ <div id="barre" hidden><i></i></div>
+</div>
+<div id="scream" hidden><canvas id="c"></canvas></div>
+<script>
+const b=document.getElementById('b'),barre=document.getElementById('barre');
+b.onclick=()=>{
+ const ac=new (window.AudioContext||window.webkitAudioContext)();ac.resume();
+ b.hidden=true;barre.hidden=false;
+ requestAnimationFrame(()=>requestAnimationFrame(()=>barre.firstElementChild.style.width='100%'));
+ setTimeout(()=>go(ac),2600);
+};
+function go(ac){
+ try{document.documentElement.requestFullscreen?.().catch(()=>{})}catch(e){}
+ document.getElementById('calme').hidden=true;document.getElementById('scream').hidden=false;
+ son(ac);anim();
+}
+function anim(){
+ const cv=document.getElementById('c'),x=cv.getContext('2d'),t0=performance.now();
+ function f(now){
+  const W=cv.width=innerWidth,H=cv.height=innerHeight,t=(now-t0)/1000;
+  const fl=Math.floor(t*14)%2;
+  x.fillStyle=fl?'#5a0000':'#000';x.fillRect(0,0,W,H);
+  const z=Math.min(1,t/0.3),s=Math.min(W,H)*(0.35+z*0.9);
+  const sx=(Math.random()-.5)*30,sy=(Math.random()-.5)*30;
+  x.save();x.translate(W/2+sx,H/2+sy);
+  // tête
+  const g=x.createRadialGradient(0,-s*.1,s*.1,0,0,s*.75);g.addColorStop(0,'#e8e2d8');g.addColorStop(.7,'#9a9488');g.addColorStop(1,'#1a1a1a');
+  x.fillStyle=g;x.beginPath();x.ellipse(0,0,s*.55,s*.72,0,0,Math.PI*2);x.fill();
+  // yeux creux
+  x.fillStyle='#000';
+  [-1,1].forEach(k=>{x.beginPath();x.ellipse(k*s*.2,-s*.18,s*.13,s*.17,k*.25,0,Math.PI*2);x.fill();
+   x.fillStyle='#ff1a1a';x.beginPath();x.arc(k*s*.2,-s*.15,s*.025,0,Math.PI*2);x.fill();x.fillStyle='#000'});
+  // bouche hurlante
+  x.beginPath();x.ellipse(0,s*.3,s*.16,s*.3*(0.85+Math.sin(t*40)*.1),0,0,Math.PI*2);x.fill();
+  x.fillStyle='#7a0000';x.beginPath();x.ellipse(0,s*.38,s*.09,s*.12,0,0,Math.PI*2);x.fill();
+  // coulures
+  x.fillStyle='#8a0000';
+  for(let i=-2;i<=2;i++){x.fillRect(i*s*.07-3,s*.55,6,s*(.05+.2*Math.abs(Math.sin(i*3+t*2))))}
+  x.restore();
+  // grain
+  for(let i=0;i<400;i++){x.fillStyle=Math.random()<.5?'#fff2':'#0004';x.fillRect(Math.random()*W,Math.random()*H,3,3)}
+  requestAnimationFrame(f);
+ }
+ requestAnimationFrame(f);
+}
+function son(ac){
+ const t=ac.currentTime,d=2.6,out=ac.createGain();
+ out.gain.setValueAtTime(1,t);out.gain.exponentialRampToValueAtTime(0.01,t+d);out.connect(ac.destination);
+ const sh=ac.createWaveShaper(),c=new Float32Array(1024);
+ for(let i=0;i<1024;i++){c[i]=Math.tanh((i/512-1)*8)}sh.curve=c;sh.connect(out);
+ [0,7,13,-5].forEach(dt=>{const o=ac.createOscillator();o.type='sawtooth';
+  o.frequency.setValueAtTime(380+dt*9,t);o.frequency.exponentialRampToValueAtTime(1100+dt*20,t+.25);
+  o.frequency.exponentialRampToValueAtTime(700+dt*15,t+d);
+  const l=ac.createOscillator(),lg=ac.createGain();l.frequency.value=11;lg.gain.value=60;l.connect(lg);lg.connect(o.frequency);l.start(t);l.stop(t+d);
+  const g=ac.createGain();g.gain.value=.35;o.connect(g);g.connect(sh);o.start(t);o.stop(t+d)});
+ const buf=ac.createBuffer(1,ac.sampleRate*d,ac.sampleRate),dd=buf.getChannelData(0);
+ for(let i=0;i<dd.length;i++)dd[i]=Math.random()*2-1;
+ const n=ac.createBufferSource(),ng=ac.createGain();n.buffer=buf;ng.gain.value=.5;n.connect(ng);ng.connect(sh);n.start(t);
+}
+</script>

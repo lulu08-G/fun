@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Photos partagées</title>
+<style>
+html,body{margin:0;height:100%;background:#f3f3f3;font-family:Segoe UI,Arial,sans-serif;overflow:hidden}
+#calme{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:18px;color:#333}
+#calme button{font-size:18px;padding:14px 28px;border:0;border-radius:6px;background:#0f6cbd;color:#fff;cursor:pointer}
+#barre{width:260px;height:6px;background:#ddd;border-radius:3px;overflow:hidden;display:none}
+#barre i{display:block;height:100%;width:0;background:#0f6cbd;transition:width 2.5s linear}
+#scream{position:fixed;inset:0;background:#000;display:none;overflow:hidden}
+#scream img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform-origin:47% 37%;
+ filter:contrast(2.2) brightness(1.3) sepia(1) hue-rotate(-50deg) saturate(6)}
+#scream.go{display:block;animation:flash .08s steps(2) infinite}
+#scream.go img{animation:zoom .35s cubic-bezier(.1,.9,.2,1) forwards, shake .05s linear infinite}
+@keyframes zoom{from{transform:scale(1)}to{transform:scale(3.2)}}
+@keyframes shake{0%{translate:0 0}25%{translate:-14px 10px}50%{translate:12px -12px}75%{translate:-10px -8px}100%{translate:8px 12px}}
+@keyframes flash{0%{background:#000}100%{background:#a00}}
+</style></head><body>
+<div id="calme">
+ <div style="font-size:22px">📷 3 photos partagées avec vous</div>
+ <button id="b">Afficher les photos</button>
+ <div id="barre"><i></i></div>
+</div>
+<div id="scream"><img src="data:image/webp;base64,__IMG__" alt=""></div>
+<script>
+const b=document.getElementById('b'),barre=document.getElementById('barre');
+b.onclick=()=>{
+ const ac=new (window.AudioContext||window.webkitAudioContext)(); ac.resume();
+ b.style.display='none';barre.style.display='block';
+ requestAnimationFrame(()=>barre.firstElementChild.style.width='100%');
+ setTimeout(()=>{scream(ac)},2600);
+};
+function scream(ac){
+ document.documentElement.requestFullscreen?.().catch(()=>{});
+ document.getElementById('calme').style.display='none';
+ document.getElementById('scream').classList.add('go');
+ const t=ac.currentTime, d=2.5, out=ac.createGain();
+ out.gain.setValueAtTime(1,t);out.gain.exponentialRampToValueAtTime(0.01,t+d);out.connect(ac.destination);
+ // cri : dents de scie désaccordées + bruit, distordus
+ const sh=ac.createWaveShaper(),c=new Float32Array(1024);
+ for(let i=0;i<1024;i++){const x=i/512-1;c[i]=Math.tanh(x*8)}sh.curve=c;sh.connect(out);
+ [0,7,13,-5].forEach(dt=>{const o=ac.createOscillator();o.type='sawtooth';
+  o.frequency.setValueAtTime(380+dt*9,t);o.frequency.exponentialRampToValueAtTime(1100+dt*20,t+.25);
+  o.frequency.exponentialRampToValueAtTime(700+dt*15,t+d);
+  const l=ac.createOscillator(),lg=ac.createGain();l.frequency.value=11;lg.gain.value=60;l.connect(lg);lg.connect(o.frequency);l.start(t);l.stop(t+d);
+  const g=ac.createGain();g.gain.value=.35;o.connect(g);g.connect(sh);o.start(t);o.stop(t+d)});
+ const buf=ac.createBuffer(1,ac.sampleRate*d,ac.sampleRate),dd=buf.getChannelData(0);
+ for(let i=0;i<dd.length;i++)dd[i]=Math.random()*2-1;
+ const n=ac.createBufferSource(),ng=ac.createGain();n.buffer=buf;ng.gain.value=.5;n.connect(ng);ng.connect(sh);n.start(t);
+}
+</script></body></html>
